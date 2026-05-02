@@ -1,22 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+import { useSocket } from '../context/SocketContext';
 import { motion } from 'framer-motion';
-import { Video, MessageSquare, Shield, Users, Globe } from 'lucide-react';
+import { Video, MessageSquare } from 'lucide-react';
 import Navbar from '../components/Navbar';
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const { preferences, setPreferences } = useUser();
-  const [onlineCount, setOnlineCount] = useState(1542);
+  const socket = useSocket();
+  const { userId, preferences, setPreferences } = useUser();
+  const [onlineCount, setOnlineCount] = useState(0);
   const [interestsInput, setInterestsInput] = useState('');
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setOnlineCount(prev => prev + Math.floor(Math.random() * 10) - 5);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!socket) return;
+
+    socket.emit('get_online_count');
+    socket.on('online_count', (count) => {
+      setOnlineCount(count);
+    });
+
+    return () => {
+      socket.off('online_count');
+    };
+  }, [socket]);
 
   const handleStart = (mode) => {
     const interests = interestsInput.split(',').map(i => i.trim()).filter(i => i !== '');
@@ -25,96 +33,83 @@ const HomePage = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="relative min-h-screen overflow-hidden flex flex-col">
       <Navbar />
       
       {/* Hero Section */}
-      <main className="container mx-auto px-6 pt-24 pb-12 flex flex-col items-center text-center">
+      <main className="flex-1 container mx-auto px-6 pt-32 md:pt-40 pb-20 flex flex-col items-center justify-center text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
+          className="max-w-4xl"
         >
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            Meet Strangers.<br />Make Connections.
+          {/* <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold mb-8">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+            </span>
+            {onlineCount.toLocaleString()} Users Online
+          </div> */}
+
+          <h1 className="text-5xl md:text-8xl font-bold mb-8 tracking-tighter leading-[1] md:leading-[0.9]">
+            Connect with<br />
+            <span className="text-gradient">the world.</span>
           </h1>
-          <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-10">
-            The ultimate anonymous video and text chat platform. Modern, fast, and secure. Talk to anyone, anywhere, instantly.
+          <p className="text-zinc-400 text-lg md:text-xl max-w-xl mx-auto mb-12 font-medium leading-relaxed">
+            The minimal anonymous video platform. Talk to anyone, anywhere, with total privacy.
           </p>
         </motion.div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-col md:flex-row gap-6 mb-12">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => handleStart('video')}
-            className="btn-neon-primary flex items-center justify-center gap-3 text-xl px-10 py-4"
-          >
-            <Video size={24} />
-            Video Chat
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => handleStart('text')}
-            className="btn-neon-secondary flex items-center justify-center gap-3 text-xl px-10 py-4"
-          >
-            <MessageSquare size={24} />
-            Text Chat
-          </motion.button>
+        {/* Interests & Actions */}
+        <div className="w-full max-w-lg mb-12">
+          <div className="glass-card p-2 flex flex-col md:flex-row gap-2 mb-6">
+            <input
+              type="text"
+              placeholder="Add your interests (gaming, music...)"
+              value={interestsInput}
+              onChange={(e) => setInterestsInput(e.target.value)}
+              className="flex-1 bg-transparent px-4 py-3 focus:outline-none text-white placeholder:text-zinc-600 text-sm md:text-base font-medium"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleStart('video')}
+                className="btn-primary flex-1 md:flex-none flex items-center justify-center gap-2 text-sm whitespace-nowrap"
+              >
+                <Video size={18} />
+                Video Chat
+              </button>
+              {/* <button
+                onClick={() => handleStart('text')}
+                className="btn-secondary flex-1 md:flex-none flex items-center justify-center gap-2 text-sm whitespace-nowrap"
+              >
+                <MessageSquare size={18} />
+                Text Chat
+              </button> */}
+            </div>
+          </div>
+          <p className="text-zinc-500 text-xs">No registration. No logs. Just connection.</p>
         </div>
 
-        {/* Interests Input */}
-        <div className="w-full max-w-md mb-16">
-          <label className="block text-gray-500 text-sm mb-2 text-left">Add your interests (comma separated)</label>
-          <input
-            type="text"
-            placeholder="e.g. music, gaming, tech"
-            value={interestsInput}
-            onChange={(e) => setInterestsInput(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-primary transition-colors text-white"
-          />
-        </div>
-
-        {/* Online Stats */}
-        <div className="flex items-center gap-2 text-primary font-medium mb-20">
-          <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-          <span>{onlineCount.toLocaleString()} people online now</span>
-        </div>
-
-        {/* Features */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
-          <FeatureCard 
-            icon={<Shield className="text-primary" />}
-            title="Safe & Private"
-            desc="Anonymous sessions. No login required. Your data is never stored."
-          />
-          <FeatureCard 
-            icon={<Globe className="text-secondary" />}
-            title="Global Reach"
-            desc="Connect with people from all over the world in an instant."
-          />
-          <FeatureCard 
-            icon={<Users className="text-primary" />}
-            title="Interest Matching"
-            desc="Find people who share your hobbies and passions."
-          />
+        {/* Minimal Features */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
+          <MinimalCard title="Secure" desc="Peer-to-peer connection with WebRTC" />
+          <MinimalCard title="Anonymous" desc="No data is stored on our servers" />
+          <MinimalCard title="Interests" desc="Match with people like you" />
         </div>
       </main>
 
-      <footer className="mt-auto py-8 border-t border-white/5 text-center text-gray-600 text-sm">
-        <p>&copy; 2026 Milo Video Chat. For users 18+. Please chat responsibly.</p>
+      <footer className="py-2 text-center">
+        <p className="text-zinc-600 text-xs font-medium uppercase tracking-widest">Milo &copy; 2026</p>
       </footer>
     </div>
   );
 };
 
-const FeatureCard = ({ icon, title, desc }) => (
-  <div className="glass-card p-8 text-left hover:border-primary/30 transition-colors">
-    <div className="mb-4">{icon}</div>
-    <h3 className="text-xl font-bold mb-2">{title}</h3>
-    <p className="text-gray-500 text-sm">{desc}</p>
+const MinimalCard = ({ title, desc }) => (
+  <div className="p-6 rounded-2xl border border-white/5 bg-white/[0.02] text-left hover:border-white/10 transition-colors">
+    <h3 className="text-sm font-bold text-white mb-1">{title}</h3>
+    <p className="text-zinc-500 text-xs leading-relaxed">{desc}</p>
   </div>
 );
 

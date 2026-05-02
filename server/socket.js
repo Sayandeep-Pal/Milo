@@ -15,6 +15,13 @@ const setupSocket = (server) => {
   io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
+    // Broadcast updated count to all
+    io.emit('online_count', io.engine.clientsCount);
+
+    socket.on('get_online_count', () => {
+      socket.emit('online_count', io.engine.clientsCount);
+    });
+
     socket.on('find_match', ({ userId, interests }) => {
       console.log(`User ${socket.id} looking for match with interests:`, interests);
       
@@ -89,6 +96,7 @@ const setupSocket = (server) => {
     socket.on('disconnect', () => {
       console.log('User disconnected:', socket.id);
       handleDisconnect(socket);
+      io.emit('online_count', io.engine.clientsCount);
     });
 
     function handleDisconnect(s) {

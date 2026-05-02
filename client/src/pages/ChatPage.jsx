@@ -59,73 +59,60 @@ const ChatPage = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-dark">
+    <div className="h-screen-dynamic flex flex-col overflow-hidden bg-dark">
       <Navbar />
       
-      <div className="flex-1 flex flex-col md:flex-row pt-20 px-4 pb-4 gap-4">
+      <div className="flex-1 flex flex-col md:flex-row pt-16 md:pt-20 px-2 md:px-4 pb-2 md:pb-4 gap-2 md:gap-4">
         {/* Left Panel: Video */}
-        <div className="flex-[3] relative glass-card overflow-hidden">
+        <div className="flex-[1.2] md:flex-[3] relative glass-card overflow-hidden min-h-[40vh] md:min-h-0">
           {status === 'WAITING' && <WaitingScreen onCancel={handleStop} />}
           
           {status === 'CONNECTED' && roomData && (
             <VideoRoom 
               partnerId={roomData.partnerId}
               initiator={roomData.initiator}
+              onNext={handleNext}
+              onStop={handleStop}
+              onReport={() => setIsReportModalOpen(true)}
             />
           )}
 
           {status === 'DISCONNECTED' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-10">
-              <h2 className="text-2xl font-bold mb-4">Stranger has left the chat</h2>
-              <button onClick={handleNext} className="btn-neon-primary flex items-center gap-2">
-                <SkipForward size={20} /> Find New Stranger
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-md z-30">
+              <h2 className="text-xl md:text-2xl font-bold mb-4 text-white tracking-tight">Stranger has left</h2>
+              <button 
+                onClick={handleNext} 
+                className="btn-primary flex items-center gap-2"
+              >
+                <SkipForward size={20} /> Find Next
               </button>
             </div>
           )}
 
-          {/* Video Controls Overlay */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 z-20">
-            <button 
-              onClick={handleStop}
-              className="p-4 bg-red-500/20 border border-red-500 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition-all shadow-[0_0_15px_rgba(239,68,68,0.3)]"
-              title="Stop"
-            >
-              <X size={24} />
-            </button>
-            <button 
-              onClick={handleNext}
-              className="p-4 bg-primary/20 border border-primary text-primary rounded-full hover:bg-primary hover:text-dark transition-all shadow-[0_0_15px_rgba(0,212,255,0.3)]"
-              title="Next Stranger"
-            >
-              <SkipForward size={24} />
-            </button>
-            <button 
-              onClick={() => setIsReportModalOpen(true)}
-              className="p-4 bg-gray-500/20 border border-gray-500 text-gray-500 rounded-full hover:bg-gray-500 hover:text-white transition-all"
-              title="Report"
-            >
-              <Flag size={24} />
-            </button>
-          </div>
-
-          {/* Mobile Chat Toggle */}
+          {/* Mobile Chat Toggle - Only show if not already showing chat below */}
           <button 
             onClick={() => setShowChatMobile(!showChatMobile)}
-            className="md:hidden absolute top-4 right-4 p-3 glass-card text-primary z-20"
+            className="md:hidden absolute top-4 right-4 p-2.5 glass-card text-primary z-20 shadow-lg border-primary/20"
           >
-            <MessageCircle size={24} />
+            <MessageCircle size={20} />
           </button>
         </div>
 
-        {/* Right Panel: Chat (Desktop) */}
-        <div className={`flex-[1.5] glass-card overflow-hidden transition-all duration-300 ${showChatMobile ? 'fixed inset-0 z-50 m-0 rounded-none' : 'hidden md:block'}`}>
+        {/* Right Panel: Chat */}
+        <div className={`flex-[1] md:flex-[1.2] glass-card overflow-hidden transition-all duration-300 ${
+          showChatMobile 
+            ? 'fixed inset-0 z-50 m-0 rounded-none' 
+            : 'hidden md:block'
+        }`}>
           {showChatMobile && (
-             <button 
-                onClick={() => setShowChatMobile(false)}
-                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white z-10"
-             >
-               <X size={24} />
-             </button>
+             <div className="absolute top-4 right-4 z-50">
+               <button 
+                  onClick={() => setShowChatMobile(false)}
+                  className="p-2 bg-dark/50 backdrop-blur-md rounded-full text-gray-400 hover:text-white border border-white/10"
+               >
+                 <X size={20} />
+               </button>
+             </div>
           )}
           <ChatBox partnerId={roomData?.partnerId} isConnected={status === 'CONNECTED'} />
         </div>

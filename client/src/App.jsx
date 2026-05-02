@@ -7,7 +7,7 @@ import Toast from './components/Toast'
 
 function App() {
   return (
-    <div className="min-h-screen animated-bg">
+    <div className="min-h-screen mesh-bg">
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/chat" element={<ChatPage />} />

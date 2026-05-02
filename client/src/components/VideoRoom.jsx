@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSocket } from '../context/SocketContext';
-import { Mic, MicOff, Video, VideoOff, Activity } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Activity, SkipForward, X, Flag } from 'lucide-react';
 
-const VideoRoom = ({ partnerId, initiator }) => {
+const VideoRoom = ({ partnerId, initiator, onNext, onStop, onReport }) => {
   const socket = useSocket();
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -11,7 +11,7 @@ const VideoRoom = ({ partnerId, initiator }) => {
   
   const [debugStatus, setDebugStatus] = useState('Initializing...');
   const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(true);
 
   useEffect(() => {
     if (!socket || !partnerId) return;
@@ -97,6 +97,11 @@ const VideoRoom = ({ partnerId, initiator }) => {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (isCanceled) { stream.getTracks().forEach(t => t.stop()); return; }
         
+        // Disable video tracks by default as per UI state
+        stream.getVideoTracks().forEach(track => {
+          track.enabled = false;
+        });
+        
         localStreamRef.current = stream;
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
@@ -131,28 +136,66 @@ const VideoRoom = ({ partnerId, initiator }) => {
   return (
     <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
       {/* Remote Video */}
-      <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+      <video ref={remoteVideoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover z-0" />
 
-      {/* Local Video */}
-      <div className="absolute bottom-24 right-6 w-32 md:w-48 aspect-video glass-card overflow-hidden shadow-2xl z-20 border-2 border-primary/30 bg-dark">
+      {/* Local Video - Repositioned to not overlap bottom controls */}
+      <div className="absolute top-4 left-4 w-28 md:w-48 aspect-video glass-card overflow-hidden shadow-2xl z-30 border border-primary/30 bg-dark">
         <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-        {isVideoOff && <div className="absolute inset-0 bg-dark/80 flex items-center justify-center"><VideoOff size={24} className="text-gray-500" /></div>}
+        {isVideoOff && <div className="absolute inset-0 bg-dark/80 flex items-center justify-center"><VideoOff size={20} className="text-gray-500" /></div>}
+        <div className="absolute bottom-1 right-1 text-[8px] bg-black/50 px-1 rounded text-white uppercase">You</div>
       </div>
 
-      {/* Debug Status Overlay */}
-      <div className="absolute top-6 left-6 flex items-center gap-2 px-3 py-1 bg-black/50 backdrop-blur-md rounded-full border border-white/10 z-40 text-[10px] text-primary uppercase tracking-widest font-bold">
-        <Activity size={12} className="animate-pulse" />
+      {/* Debug Status Overlay - Made more subtle and repositioned */}
+      <div className="absolute top-4 right-4 md:right-auto md:left-56 flex items-center gap-2 px-2 py-1 bg-black/30 backdrop-blur-sm rounded-lg border border-white/5 z-30 text-[9px] text-gray-400 uppercase tracking-wider">
+        <Activity size={10} className={pcRef.current?.connectionState === 'connected' ? 'text-green-500' : 'text-primary animate-pulse'} />
         {debugStatus}
       </div>
 
-      {/* Media Controls */}
-      <div className="absolute bottom-6 left-6 flex items-center gap-3 z-30">
-        <button onClick={() => { localStreamRef.current.getAudioTracks()[0].enabled = isMuted; setIsMuted(!isMuted); }} className={`p-3 rounded-full transition-all ${isMuted ? 'bg-red-500/20 text-red-500 border border-red-500' : 'bg-white/10 text-white border border-white/10'}`}>
-          {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
-        </button>
-        <button onClick={() => { localStreamRef.current.getVideoTracks()[0].enabled = isVideoOff; setIsVideoOff(!isVideoOff); }} className={`p-3 rounded-full transition-all ${isVideoOff ? 'bg-red-500/20 text-red-500 border border-red-500' : 'bg-white/10 text-white border border-white/10'}`}>
-          {isVideoOff ? <VideoOff size={20} /> : <Video size={20} />}
-        </button>
+      {/* Unified Control Toolbar */}
+      <div className="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-4 z-50 w-full px-4 justify-center">
+        {/* Media Controls Group */}
+        <div className="flex items-center gap-2 p-1.5 bg-zinc-900/50 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl">
+          <button 
+            onClick={() => { localStreamRef.current.getAudioTracks()[0].enabled = isMuted; setIsMuted(!isMuted); }} 
+            className={`p-2.5 md:p-3 rounded-xl transition-all ${isMuted ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'hover:bg-white/5 text-zinc-400 hover:text-white'}`}
+            title={isMuted ? "Unmute" : "Mute"}
+          >
+            {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+          </button>
+          <button 
+            onClick={() => { localStreamRef.current.getVideoTracks()[0].enabled = isVideoOff; setIsVideoOff(!isVideoOff); }} 
+            className={`p-2.5 md:p-3 rounded-xl transition-all ${isVideoOff ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'hover:bg-white/5 text-zinc-400 hover:text-white'}`}
+            title={isVideoOff ? "Turn Video On" : "Turn Video Off"}
+          >
+            {isVideoOff ? <VideoOff size={18} /> : <Video size={18} />}
+          </button>
+        </div>
+
+        {/* Session Controls Group */}
+        <div className="flex items-center gap-2 p-1.5 bg-zinc-900/50 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl">
+          <button 
+            onClick={onStop}
+            className="p-2.5 md:p-3 hover:bg-red-500/10 text-zinc-500 hover:text-red-500 rounded-xl transition-all"
+            title="Stop Chat"
+          >
+            <X size={18} />
+          </button>
+          <button 
+            onClick={onNext}
+            className="p-2.5 md:p-3 bg-white text-black rounded-xl hover:bg-zinc-200 transition-all font-semibold flex items-center gap-2"
+            title="Next Stranger"
+          >
+            <SkipForward size={18} />
+            <span className="hidden md:inline text-xs uppercase tracking-wider">Next</span>
+          </button>
+          <button 
+            onClick={onReport}
+            className="p-2.5 md:p-3 hover:bg-white/5 text-zinc-600 hover:text-white rounded-xl transition-all"
+            title="Report Stranger"
+          >
+            <Flag size={18} />
+          </button>
+        </div>
       </div>
     </div>
   );
