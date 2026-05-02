@@ -17,6 +17,11 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/omegle-cl
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
+
+app.get('/', (req, res) => {
+  res.send('Welcome to the Milo API');
+});
+
 // Routes
 app.use('/api/report', require('./routes/report'));
 
