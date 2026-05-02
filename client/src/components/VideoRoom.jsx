@@ -2,12 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSocket } from '../context/SocketContext';
 import { Mic, MicOff, Video, VideoOff, Activity, SkipForward, X, Flag } from 'lucide-react';
 
-const VideoRoom = ({ partnerId, initiator, onNext, onStop, onReport }) => {
+const VideoRoom = ({ partnerId, initiator, onNext, onStop, onReport, localStream }) => {
   const socket = useSocket();
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const pcRef = useRef(null);
-  const localStreamRef = useRef(null);
   
   const [debugStatus, setDebugStatus] = useState('Initializing...');
   const [isMuted, setIsMuted] = useState(false);
@@ -53,10 +52,6 @@ const VideoRoom = ({ partnerId, initiator, onNext, onStop, onReport }) => {
       if (pc.connectionState === 'failed') setDebugStatus('Connection Failed - Try Refreshing');
     };
 
-    pc.oniceconnectionstatechange = () => {
-      log(`ICE state: ${pc.iceConnectionState}`);
-    };
-
     // --- Signaling Handlers ---
     const handleOffer = async ({ from, offer }) => {
       if (from !== partnerId || isCanceled) return;
@@ -90,22 +85,17 @@ const VideoRoom = ({ partnerId, initiator, onNext, onStop, onReport }) => {
     socket.on('signal:answer', handleAnswer);
     socket.on('signal:ice-candidate', handleIceCandidate);
 
-    // --- Start Media & Signaling ---
+    // --- Start Signaling with pre-acquired localStream ---
     const start = async () => {
       try {
-        log('Requesting Camera...');
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        if (isCanceled) { stream.getTracks().forEach(t => t.stop()); return; }
-        
-        // Disable video tracks by default as per UI state
-        stream.getVideoTracks().forEach(track => {
-          track.enabled = false;
-        });
-        
-        localStreamRef.current = stream;
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+        if (!localStream) {
+          log('Waiting for media...');
+          return;
+        }
 
-        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+        if (localVideoRef.current) localVideoRef.current.srcObject = localStream;
+
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
         log('Media tracks added');
 
         if (initiator) {
@@ -116,8 +106,7 @@ const VideoRoom = ({ partnerId, initiator, onNext, onStop, onReport }) => {
           log('Offer sent');
         }
       } catch (e) {
-        log(`Media Error: ${e.name}`);
-        alert(`Camera error: ${e.name}. Ensure you are on HTTPS or localhost.`);
+        log(`Setup Error: ${e.name}`);
       }
     };
 
@@ -129,9 +118,8 @@ const VideoRoom = ({ partnerId, initiator, onNext, onStop, onReport }) => {
       socket.off('signal:answer', handleAnswer);
       socket.off('signal:ice-candidate', handleIceCandidate);
       if (pcRef.current) pcRef.current.close();
-      if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
     };
-  }, [socket, partnerId, initiator]);
+  }, [socket, partnerId, initiator, localStream]);
 
   return (
     <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
@@ -156,14 +144,24 @@ const VideoRoom = ({ partnerId, initiator, onNext, onStop, onReport }) => {
         {/* Media Controls Group */}
         <div className="flex items-center gap-2 p-1.5 bg-zinc-900/50 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl">
           <button 
-            onClick={() => { localStreamRef.current.getAudioTracks()[0].enabled = isMuted; setIsMuted(!isMuted); }} 
+            onClick={() => { 
+              if (localStream) {
+                localStream.getAudioTracks().forEach(t => t.enabled = isMuted);
+                setIsMuted(!isMuted);
+              }
+            }} 
             className={`p-2.5 md:p-3 rounded-xl transition-all ${isMuted ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'hover:bg-white/5 text-zinc-400 hover:text-white'}`}
             title={isMuted ? "Unmute" : "Mute"}
           >
             {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
           </button>
           <button 
-            onClick={() => { localStreamRef.current.getVideoTracks()[0].enabled = isVideoOff; setIsVideoOff(!isVideoOff); }} 
+            onClick={() => { 
+              if (localStream) {
+                localStream.getVideoTracks().forEach(t => t.enabled = isVideoOff);
+                setIsVideoOff(!isVideoOff);
+              }
+            }} 
             className={`p-2.5 md:p-3 rounded-xl transition-all ${isVideoOff ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'hover:bg-white/5 text-zinc-400 hover:text-white'}`}
             title={isVideoOff ? "Turn Video On" : "Turn Video Off"}
           >

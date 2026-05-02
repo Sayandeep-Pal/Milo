@@ -19,6 +19,32 @@ const ChatPage = () => {
   const [roomData, setRoomData] = useState(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [showChatMobile, setShowChatMobile] = useState(false);
+  const [localStream, setLocalStream] = useState(null);
+
+  // Acquire media stream immediately on mount to satisfy mobile user gesture requirements
+  useEffect(() => {
+    let isMounted = true;
+    const getMedia = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'user' }, 
+          audio: true 
+        });
+        if (isMounted) {
+          // Default to video off as per user preference
+          stream.getVideoTracks().forEach(t => t.enabled = false);
+          setLocalStream(stream);
+        }
+      } catch (err) {
+        console.error('Initial Media Error:', err);
+        // We don't alert here yet, VideoRoom will handle it if it needs it
+      }
+    };
+    getMedia();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const findMatch = useCallback(() => {
     if (!socket) return;
@@ -74,6 +100,7 @@ const ChatPage = () => {
               onNext={handleNext}
               onStop={handleStop}
               onReport={() => setIsReportModalOpen(true)}
+              localStream={localStream}
             />
           )}
 
