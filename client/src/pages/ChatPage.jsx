@@ -26,8 +26,19 @@ const ChatPage = () => {
     let isMounted = true;
     const getMedia = async () => {
       try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          appError = "Camera access requires HTTPS. Please access via https://";
+          console.error(appError);
+          alert(appError);
+          return;
+        }
+
         const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'user' }, 
+          video: {
+            facingMode: 'user',
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          }, 
           audio: true 
         });
         if (isMounted) {

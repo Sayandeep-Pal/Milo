@@ -43,12 +43,18 @@ const VideoRoom = ({ partnerId, initiator, onNext, onStop, onReport, localStream
       log('Remote track received!');
       if (remoteVideoRef.current && event.streams[0]) {
         remoteVideoRef.current.srcObject = event.streams[0];
+        remoteVideoRef.current.play().catch(e => log(`Autoplay block: ${e.message}`));
       }
     };
 
     pc.onconnectionstatechange = () => {
       log(`Connection state: ${pc.connectionState}`);
-      if (pc.connectionState === 'connected') setDebugStatus('Connected');
+      if (pc.connectionState === 'connected') {
+        setDebugStatus('Connected');
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.play().catch(e => log(`Autoplay block: ${e.message}`));
+        }
+      }
       if (pc.connectionState === 'failed') setDebugStatus('Connection Failed - Try Refreshing');
     };
 
@@ -93,7 +99,10 @@ const VideoRoom = ({ partnerId, initiator, onNext, onStop, onReport, localStream
           return;
         }
 
-        if (localVideoRef.current) localVideoRef.current.srcObject = localStream;
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = localStream;
+          localVideoRef.current.play().catch(e => log(`Local play block: ${e.message}`));
+        }
 
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
         log('Media tracks added');
@@ -140,15 +149,15 @@ const VideoRoom = ({ partnerId, initiator, onNext, onStop, onReport, localStream
       </div>
 
       {/* Unified Control Toolbar */}
-      <div className="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-4 z-50 w-full px-4 justify-center">
+      <div className="absolute inset-x-0 bottom-6 md:bottom-8 flex items-center gap-2 md:gap-4 z-50 px-4 justify-center pointer-events-none">
         {/* Media Controls Group */}
-        <div className="flex items-center gap-2 p-1.5 bg-zinc-900/50 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl">
+        <div className="flex items-center gap-2 p-1.5 bg-zinc-900/50 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl pointer-events-auto">
           <button 
             onClick={() => { 
               if (localStream) {
-                localStream.getAudioTracks().forEach(t => t.enabled = isMuted);
-                setIsMuted(!isMuted);
+                localStream.getAudioTracks().forEach(t => t.enabled = !t.enabled);
               }
+              setIsMuted(!isMuted); // Visually update state even if no stream
             }} 
             className={`p-2.5 md:p-3 rounded-xl transition-all ${isMuted ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'hover:bg-white/5 text-zinc-400 hover:text-white'}`}
             title={isMuted ? "Unmute" : "Mute"}
@@ -158,9 +167,9 @@ const VideoRoom = ({ partnerId, initiator, onNext, onStop, onReport, localStream
           <button 
             onClick={() => { 
               if (localStream) {
-                localStream.getVideoTracks().forEach(t => t.enabled = isVideoOff);
-                setIsVideoOff(!isVideoOff);
+                localStream.getVideoTracks().forEach(t => t.enabled = !t.enabled);
               }
+              setIsVideoOff(!isVideoOff); // Visually update state even if no stream
             }} 
             className={`p-2.5 md:p-3 rounded-xl transition-all ${isVideoOff ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'hover:bg-white/5 text-zinc-400 hover:text-white'}`}
             title={isVideoOff ? "Turn Video On" : "Turn Video Off"}
@@ -170,7 +179,7 @@ const VideoRoom = ({ partnerId, initiator, onNext, onStop, onReport, localStream
         </div>
 
         {/* Session Controls Group */}
-        <div className="flex items-center gap-2 p-1.5 bg-zinc-900/50 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl">
+        <div className="flex items-center gap-2 p-1.5 bg-zinc-900/50 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl pointer-events-auto">
           <button 
             onClick={onStop}
             className="p-2.5 md:p-3 hover:bg-red-500/10 text-zinc-500 hover:text-red-500 rounded-xl transition-all"
